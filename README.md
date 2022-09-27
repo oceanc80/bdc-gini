@@ -1,1 +1,1 @@
-# sudoku-gini
+# bdc-gini
