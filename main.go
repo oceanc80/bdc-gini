@@ -46,8 +46,8 @@ func main() {
 	}
 
 	var openClause bool
-	var add = func(l z.Lit) {
-		g.Add(l)
+
+	var printClause = func (l z.Lit) {
 		if l.String() == "0" {
 			fmt.Println()
 			openClause = false
@@ -67,18 +67,26 @@ func main() {
 		p1 := v / base / base
 		p2 := (v - w - p1*base*base) /base
 		fmt.Printf("w%d(%s,%s)", w, bdc_names[p1], bdc_names[p2])
-
-
 	}
 
-	for p1 := range bdc_names {
-		// Exclude possibility of selecting same person twice
-		for p2 := p1 + 1; p2 < len(bdc_names); p2++ {
-			if num_weeks == 0 {
-				continue
-			}
-			for w := 0; w < num_weeks; w++ {
+	var add = func(l z.Lit) {
+		g.Add(l)
+		printClause(l)
+	}
+
+	for w := 0; w < num_weeks; w++ {
+		if num_weeks == 0 {
+			continue
+		}
+		for p1 := range bdc_names {
+			var nonEmptyClause bool
+			// Exclude possibility of selecting same person twice
+			for p2 := p1 + 1; p2 < len(bdc_names); p2++ {
+				nonEmptyClause = true
 				add(lit(p1, p2, w))
+			}
+			if !nonEmptyClause{
+				continue
 			}
 			// terminate with 0 to end a set of OR'd literals
 			add(0)
@@ -113,7 +121,7 @@ func main() {
 
 	// The same pair should not repeat
 	for p1 := range bdc_names {
-		for p2 := range bdc_names {
+		for p2 := p1 + 1; p2 < len(bdc_names); p2++ {
 			for w := 0; w < num_weeks; w++ {
 				var nonEmptyClause bool
 				a := lit(p1, p2, w)
@@ -135,11 +143,12 @@ func main() {
 	}
 
 	if g.Solve() != 1 {
-		//reasons := make([]z.Lit, lit_len)
-		//result := g.Why(reasons)
+		reasons := make([]z.Lit, 10000000)
+		result := g.Why(reasons)
 		fmt.Println("Failed to schedule BDC:")
-		//for _, a := range append(result, reasons...) {
-		//}
+		for _, a := range append(result, reasons...) {
+			printClause(a)
+		}
 		return
 	}
 
