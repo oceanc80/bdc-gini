@@ -64,39 +64,52 @@ func main() {
 		}
 		v -= 1
 		w := v % base
-		p1 := v / base / base
-		p2 := (v - w - p1*base*base) /base
+		p2 := v / base / base
+		p1 := (v - w - p2*base*base) /base
 		fmt.Printf("w%d(%s,%s)", w, bdc_names[p1], bdc_names[p2])
 	}
 
 	var add = func(l z.Lit) {
 		g.Add(l)
-		printClause(l)
+//		printClause(l)
 	}
 
 	for w := 0; w < num_weeks; w++ {
-		if num_weeks == 0 {
-			continue
-		}
+		var nonEmptyClause bool
 		for p1 := range bdc_names {
-			var nonEmptyClause bool
 			// Exclude possibility of selecting same person twice
 			for p2 := p1 + 1; p2 < len(bdc_names); p2++ {
 				nonEmptyClause = true
 				add(lit(p1, p2, w))
 			}
-			if !nonEmptyClause{
-				continue
-			}
+		}
+		if nonEmptyClause{
 			// terminate with 0 to end a set of OR'd literals
 			add(0)
+		}
+	}
+
+	// The same pair should not repeat
+	for p1 := range bdc_names {
+		for p2 := p1 + 1; p2 < len(bdc_names); p2++ {
+			for w := 0; w < num_weeks; w++ {
+				a := lit(p1, p2, w)
+				for i := 1; i <= pair_min; i++ {
+					if w-i < 0 {
+						continue
+					}
+					b := lit(p1, p2, w-i)
+					add(a.Not())
+					add(b.Not())
+					add(0)
+				}
+			}
 		}
 	}
 
 	// The same person should not serve consecutive weeks
 	for p1 := range bdc_names {
 		for w := 0; w < num_weeks; w++ {
-			var nonEmptyClause bool
 			setA := foranywith(p1, w)
 			for i := 1; i <= repeat_min; i++ {
 				if w-i < 0 {
@@ -108,42 +121,17 @@ func main() {
 						// ~A OR ~B = ~(A AND B)
 						add(a.Not())
 						add(b.Not())
-						nonEmptyClause = true
+						add(0)
 					}
 				}
 			}
-			if !nonEmptyClause{
-				continue
-			}
-			add(0)
 		}
 	}
 
-	// The same pair should not repeat
-	for p1 := range bdc_names {
-		for p2 := p1 + 1; p2 < len(bdc_names); p2++ {
-			for w := 0; w < num_weeks; w++ {
-				var nonEmptyClause bool
-				a := lit(p1, p2, w)
-				for i := 1; i <= pair_min; i++ {
-					if w-i < 0 {
-						continue
-					}
-					b := lit(p1, p2, w-i)
-					add(a.Not())
-					add(b.Not())
-					nonEmptyClause = true
-				}
-				if !nonEmptyClause{
-					continue
-				}
-				add(0)
-			}
-		}
-	}
+// TODO: initialize with known pairs here
 
 	if g.Solve() != 1 {
-		reasons := make([]z.Lit, 10000000)
+		reasons := make([]z.Lit, 0)
 		result := g.Why(reasons)
 		fmt.Println("Failed to schedule BDC:")
 		for _, a := range append(result, reasons...) {
